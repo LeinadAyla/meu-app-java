@@ -262,20 +262,42 @@
       const formatter = new Intl.NumberFormat("pt-BR");
       const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+      function clearSession(message) {
+        localStorage.removeItem(tokenKey);
+        token = null;
+        roles = [];
+        pageNumber = 0;
+        byId("dashboard").classList.add("hidden");
+        byId("logout-button").classList.add("hidden");
+        byId("login-panel").classList.remove("hidden");
+        byId("login-message").textContent = message;
+      }
+
       function today() {
         const date = new Date();
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       }
 
-      function decodeRoles(jwt) {
+      function decodeClaims(jwt) {
         try {
-          const payload = JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-          return Array.isArray(payload.roles)
-            ? payload.roles.map((role) => role.startsWith("ROLE_") ? role : `ROLE_${role}`)
-            : [];
+          const segment = jwt.split(".")[1];
+          if (!segment) return null;
+          const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+          if (!Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()) return null;
+          return payload;
         } catch {
-          return [];
+          return null;
         }
+      }
+
+      function decodeRoles(jwt) {
+        const claims = decodeClaims(jwt);
+        return claims && Array.isArray(claims.roles)
+          ? claims.roles
+            .filter((role) => typeof role === "string")
+            .map((role) => role.startsWith("ROLE_") ? role : `ROLE_${role}`)
+          : [];
       }
 
       function applyTheme(theme) {
@@ -316,20 +338,22 @@
       }
 
       async function request(path, options = {}) {
-        const headers = new Headers(options.headers || {});
-        if (token) headers.set("Authorization", `Bearer ${token}`);
-        if (options.body) headers.set("Content-Type", "application/json");
-        const response = await fetch(path, { ...options, headers });
-        if (response.status === 401) {
-          localStorage.removeItem(tokenKey);
-          token = null;
-          roles = [];
-          byId("dashboard").classList.add("hidden");
-          byId("logout-button").classList.add("hidden");
-          byId("login-panel").classList.remove("hidden");
+        if (!token || !decodeClaims(token)) {
+          clearSession("Sua sessão expirou. Entre novamente.");
           throw new Error("Sua sessão expirou. Entre novamente.");
         }
-        if (response.status === 403) throw new Error("Seu perfil não tem permissão para esta operação.");
+        const headers = new Headers(options.headers || {});
+        headers.set("Authorization", `Bearer ${token}`);
+        if (options.body) headers.set("Content-Type", "application/json");
+        const response = await fetch(path, { ...options, headers });
+        if (response.status === 401 || response.status === 403) {
+          clearSession(response.status === 401
+            ? "Sua sessão expirou. Entre novamente."
+            : "Não foi possível autorizar sua sessão. Entre novamente com um perfil permitido.");
+          throw new Error(response.status === 401
+            ? "Sua sessão expirou. Entre novamente."
+            : "Acesso não autorizado. Faça login novamente.");
+        }
         if (!response.ok) {
           let message = `Não foi possível concluir a operação (HTTP ${response.status}).`;
           try {
@@ -447,6 +471,10 @@
       }
 
       async function refreshDashboard() {
+        if (!token || !decodeClaims(token) || !readRoles.some((role) => roles.includes(role))) {
+          if (token && !decodeClaims(token)) clearSession("Sua sessão expirou. Entre novamente.");
+          return;
+        }
         await refreshHealth();
         byId("table-message").textContent = "Carregando contratos…";
         try {
@@ -466,8 +494,7 @@
           renderContracts(page.content || []);
           renderChart(summary.anomaliasPorCategoria);
         } catch (error) {
-          byId("table-message").textContent = error.message;
-          byId("login-message").textContent = error.message;
+          if (token) byId("table-message").textContent = error.message;
         }
       }
 
@@ -486,9 +513,16 @@
           });
           if (!response.ok) throw new Error(response.status === 401 ? "Usuário ou senha inválidos." : `Falha no login (HTTP ${response.status}).`);
           const result = await response.json();
-          token = result.accessToken;
-          if (!token) throw new Error("O servidor não retornou um token de acesso.");
-          roles = decodeRoles(token);
+          const accessToken = result.accessToken;
+          const claims = accessToken ? decodeClaims(accessToken) : null;
+          if (!claims) throw new Error("O servidor não retornou um token JWT válido.");
+          token = accessToken;
+          roles = Array.isArray(claims.roles)
+            ? claims.roles
+              .filter((role) => typeof role === "string")
+              .map((role) => role.startsWith("ROLE_") ? role : `ROLE_${role}`)
+            : [];
+          if (!roles.length) throw new Error("O token não contém um perfil de acesso.");
           localStorage.setItem(tokenKey, token);
           form.reset();
           showLoggedIn();
@@ -547,14 +581,7 @@
         if (token && roles.some((role) => readRoles.includes(role))) refreshDashboard();
       });
       byId("logout-button").addEventListener("click", () => {
-        localStorage.removeItem(tokenKey);
-        token = null;
-        roles = [];
-        pageNumber = 0;
-        byId("dashboard").classList.add("hidden");
-        byId("logout-button").classList.add("hidden");
-        byId("login-panel").classList.remove("hidden");
-        byId("login-message").textContent = "Sessão encerrada.";
+        clearSession("Sessão encerrada.");
       });
       byId("theme-toggle").addEventListener("click", () => {
         applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
@@ -562,9 +589,15 @@
 
       applyTheme(localStorage.getItem(themeKey) || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
       refreshHealth();
-      if (token) {
+      if (token && decodeClaims(token)) {
         roles = decodeRoles(token);
+        if (!roles.length) {
+          clearSession("A sessão salva não contém um perfil válido. Entre novamente.");
+          return;
+        }
         showLoggedIn();
+      } else if (token) {
+        clearSession("Sua sessão expirou. Entre novamente.");
       }
     })();
   </script>
