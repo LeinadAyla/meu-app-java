@@ -107,6 +107,19 @@ class ContratoPublicoControllerIntegrationTest {
     }
 
     @Test
+    void serveFaviconPublicamenteSemAutenticacao() throws Exception {
+        mockMvc.perform(get("/favicon.ico"))
+                .andExpect(status().isFound())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Location", "/favicon.svg"));
+
+        mockMvc.perform(get("/favicon.svg"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentTypeCompatibleWith("image/svg+xml"));
+    }
+
+    @Test
     void autenticaAuditorEDaAcessoComJwtAssinado() throws Exception {
         String token = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

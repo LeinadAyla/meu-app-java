@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1220">
   <meta name="description" content="Painel executivo AuditaGov para transparência e auditoria de contratos públicos.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>AuditaGov | Painel executivo</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -82,16 +83,22 @@
           <div>
             <p class="mb-2 text-sm font-semibold text-teal-400">Acesso seguro</p>
             <h2 class="text-2xl font-bold">Entre para consultar o painel</h2>
-            <p class="mt-2 text-sm muted">Use as credenciais de demonstração configuradas pelo administrador. Seu token fica salvo apenas neste navegador.</p>
+            <p class="mt-2 text-sm muted">Escolha um perfil de demonstração e informe a senha configurada pelo administrador. Seu token fica salvo apenas neste navegador.</p>
           </div>
           <form id="login-form" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <label class="block text-sm">Usuário
-              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="username" autocomplete="username" required>
+              <input id="login-username" class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="username" autocomplete="username" required>
             </label>
             <label class="block text-sm">Senha
-              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" type="password" name="password" autocomplete="current-password" required>
+              <input id="login-password" class="field mt-1.5 w-full rounded-lg px-3 py-2.5" type="password" name="password" autocomplete="current-password" required>
             </label>
             <button class="accent-button rounded-lg px-5 py-2.5 font-semibold disabled:cursor-wait disabled:opacity-60" type="submit">Entrar</button>
+            <div class="flex flex-wrap gap-2 sm:col-span-3" aria-label="Atalhos de perfil">
+              <button class="surface rounded-lg px-3 py-2 text-xs hover:border-teal-400" type="button" data-demo-user="ingestor">Entrar como Ingestor</button>
+              <button class="surface rounded-lg px-3 py-2 text-xs hover:border-teal-400" type="button" data-demo-user="auditor">Entrar como Auditor</button>
+              <button class="surface rounded-lg px-3 py-2 text-xs hover:border-teal-400" type="button" data-demo-user="admin">Entrar como Admin</button>
+            </div>
+            <p class="sm:col-span-3 text-xs muted">Os atalhos selecionam o usuário sem expor senhas de demonstração no código público.</p>
             <p id="login-message" class="text-sm text-rose-400 sm:col-span-3" role="alert"></p>
           </form>
         </div>
@@ -466,8 +473,9 @@
 
       byId("login-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const button = event.currentTarget.querySelector('button[type="submit"]');
-        const data = new FormData(event.currentTarget);
+        const form = event.currentTarget;
+        const button = form.querySelector('button[type="submit"]');
+        const data = new FormData(form);
         button.disabled = true;
         byId("login-message").textContent = "";
         try {
@@ -482,13 +490,22 @@
           if (!token) throw new Error("O servidor não retornou um token de acesso.");
           roles = decodeRoles(token);
           localStorage.setItem(tokenKey, token);
-          event.currentTarget.reset();
+          form.reset();
           showLoggedIn();
         } catch (error) {
           byId("login-message").textContent = error.message;
         } finally {
           button.disabled = false;
         }
+      });
+
+      document.querySelectorAll("[data-demo-user]").forEach((button) => {
+        button.addEventListener("click", () => {
+          byId("login-username").value = button.dataset.demoUser;
+          byId("login-password").value = "";
+          byId("login-message").textContent = "Informe a senha de demonstração configurada para este usuário.";
+          byId("login-password").focus();
+        });
       });
 
       byId("contract-form").addEventListener("submit", async (event) => {
