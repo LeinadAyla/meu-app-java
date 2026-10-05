@@ -88,8 +88,22 @@ class ContratoPublicoControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.measurements[0].value").value(1.0));
 
+        mockMvc.perform(get("/api/contratos/resumo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalContratos").value(1))
+                .andExpect(jsonPath("$.contratosSuspeitos").value(1))
+                .andExpect(jsonPath("$.anomaliasPorCategoria.TI").value(1));
+
         org.junit.jupiter.api.Assertions.assertEquals(
-                2L, jdbcTemplate.queryForObject("select count(*) from audit_logs", Long.class));
+                3L, jdbcTemplate.queryForObject("select count(*) from audit_logs", Long.class));
+    }
+
+    @Test
+    void serveDashboardPublicamente() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentTypeCompatibleWith(MediaType.TEXT_HTML));
     }
 
     @Test

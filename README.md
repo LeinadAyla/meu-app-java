@@ -50,6 +50,10 @@ As regras são ajustáveis pelas propriedades `audita.anomalias.*`:
 
 A comparação histórica usa a média dos contratos persistidos anteriormente na mesma categoria. Os limites financeiros acima são parâmetros demonstrativos, não valores legais. Ajuste-os à política da organização e à legislação vigente antes de qualquer uso operacional.
 
+## Painel executivo
+
+A página inicial (`/`) serve o dashboard responsivo com tema claro/escuro, indicadores de contratos e valores, contratos paginados, gráfico de anomalias por categoria e formulário de ingestão. Entre com o perfil `auditor` ou `admin` para consultar os indicadores; o perfil `ingestor` pode cadastrar contratos. O painel persiste o JWT no `localStorage` deste navegador e o remove ao sair ou quando a API rejeita a sessão. A rota `/api/contratos/resumo` agrega os valores e riscos diretamente na base de dados.
+
 ## Executar com Docker Compose
 
 Requer Docker Engine e Docker Compose. Defina senhas locais fortes e uma chave HMAC de pelo menos 32 caracteres. No PowerShell:

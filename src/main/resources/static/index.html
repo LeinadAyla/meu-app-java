@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Painel executivo AuditaGov para transparência e auditoria de contratos públicos.">
+  <title>AuditaGov | Painel executivo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #0b1220;
+      --surface: #111b2e;
+      --surface-raised: #162238;
+      --line: #26344c;
+      --text: #edf3fc;
+      --muted: #9aabc3;
+      --accent: #55d6be;
+      --accent-ink: #071b20;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --page: #f3f6fa;
+      --surface: #ffffff;
+      --surface-raised: #f7f9fc;
+      --line: #dce4ef;
+      --text: #172338;
+      --muted: #61718a;
+      --accent: #087e72;
+      --accent-ink: #ffffff;
+    }
+    body { background: var(--page); color: var(--text); }
+    .surface { background: var(--surface); border: 1px solid var(--line); }
+    .surface-raised { background: var(--surface-raised); border: 1px solid var(--line); }
+    .muted { color: var(--muted); }
+    .field { background: var(--surface-raised); border: 1px solid var(--line); color: var(--text); }
+    .field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .accent-button { background: var(--accent); color: var(--accent-ink); }
+    .risk-BAIXO { color: #34d399; background: #064e3b55; }
+    .risk-MEDIO { color: #fbbf24; background: #78350f55; }
+    .risk-ALTO { color: #fb923c; background: #7c2d1255; }
+    .risk-CRITICO { color: #fb7185; background: #88133755; }
+    .table-row { border-bottom: 1px solid var(--line); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  </style>
+</head>
+<body class="min-h-full antialiased">
+  <div class="mx-auto min-h-screen max-w-[1600px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
+    <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <a href="/" class="flex items-center gap-3 rounded-xl" aria-label="AuditaGov, início">
+        <span class="grid h-11 w-11 place-items-center rounded-2xl bg-teal-400 text-xl font-black text-slate-950">A</span>
+        <span>
+          <span class="block text-lg font-bold tracking-tight">AuditaGov</span>
+          <span class="block text-xs muted">Transparência com inteligência</span>
+        </span>
+      </a>
+      <div class="flex items-center gap-2">
+        <a href="/swagger-ui/index.html" class="rounded-lg px-3 py-2 text-sm muted hover:text-current">API docs</a>
+        <button id="theme-toggle" type="button" class="surface rounded-lg px-3 py-2 text-sm" aria-label="Alternar tema">Tema</button>
+        <button id="logout-button" type="button" class="hidden rounded-lg px-3 py-2 text-sm muted hover:text-current">Sair</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <p class="mb-2 text-xs font-semibold uppercase tracking-[.2em] text-teal-400">Visão executiva</p>
+          <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Painel de contratos públicos</h1>
+          <p class="mt-2 max-w-2xl muted">Acompanhe contratos, valores auditados e sinais que merecem análise.</p>
+        </div>
+        <div class="surface flex items-center gap-3 rounded-xl px-4 py-3" aria-live="polite">
+          <span id="health-dot" class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
+          <span class="text-sm"><span class="muted">Serviço</span> <strong id="health-label" class="ml-1">Verificando…</strong></span>
+          <button id="refresh-button" type="button" class="ml-2 text-sm text-teal-400 hover:underline">Atualizar</button>
+        </div>
+      </section>
+
+      <section id="login-panel" class="surface mb-8 rounded-2xl p-5 sm:p-7">
+        <div class="grid gap-7 md:grid-cols-[1fr_1.1fr] md:items-center">
+          <div>
+            <p class="mb-2 text-sm font-semibold text-teal-400">Acesso seguro</p>
+            <h2 class="text-2xl font-bold">Entre para consultar o painel</h2>
+            <p class="mt-2 text-sm muted">Use as credenciais de demonstração configuradas pelo administrador. Seu token fica salvo apenas neste navegador.</p>
+          </div>
+          <form id="login-form" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <label class="block text-sm">Usuário
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="username" autocomplete="username" required>
+            </label>
+            <label class="block text-sm">Senha
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" type="password" name="password" autocomplete="current-password" required>
+            </label>
+            <button class="accent-button rounded-lg px-5 py-2.5 font-semibold disabled:cursor-wait disabled:opacity-60" type="submit">Entrar</button>
+            <p id="login-message" class="text-sm text-rose-400 sm:col-span-3" role="alert"></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="dashboard" class="hidden">
+        <div id="read-access-notice" class="surface mb-6 hidden rounded-xl p-4 text-sm muted">
+          Seu perfil pode ingerir contratos. Para consultar indicadores e contratos existentes, entre com perfil Auditor ou Administrador.
+        </div>
+
+        <div id="read-dashboard" class="hidden">
+          <section class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores rápidos">
+            <article class="surface rounded-2xl p-5">
+              <p class="text-sm muted">Total de contratos</p>
+              <p id="total-contracts" class="mt-3 text-3xl font-bold">—</p>
+              <p class="mt-2 text-xs muted">Registros na base auditada</p>
+            </article>
+            <article class="surface rounded-2xl p-5">
+              <p class="text-sm muted">Contratos suspeitos</p>
+              <p id="suspicious-contracts" class="mt-3 text-3xl font-bold text-rose-400">—</p>
+              <p class="mt-2 text-xs muted">Risco alto ou crítico</p>
+            </article>
+            <article class="surface rounded-2xl p-5">
+              <p class="text-sm muted">Valor auditado</p>
+              <p id="audited-value" class="mt-3 break-words text-2xl font-bold">—</p>
+              <p class="mt-2 text-xs muted">Soma dos valores contratados</p>
+            </article>
+            <article class="surface rounded-2xl p-5">
+              <p class="text-sm muted">Saúde da plataforma</p>
+              <p id="platform-health" class="mt-3 text-3xl font-bold">—</p>
+              <p class="mt-2 text-xs muted">Health check do serviço</p>
+            </article>
+          </section>
+
+          <div class="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.85fr)]">
+            <section class="surface min-w-0 rounded-2xl p-5 sm:p-6">
+              <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 class="text-lg font-semibold">Contratos recentes</h2>
+                  <p class="mt-1 text-sm muted">Consulte nível de risco, fornecedor e valores.</p>
+                </div>
+                <span id="page-label" class="text-xs muted"></span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full min-w-[760px] text-left text-sm">
+                  <thead class="muted">
+                    <tr class="border-b" style="border-color:var(--line)">
+                      <th class="pb-3 pr-4 font-medium">Processo / contrato</th>
+                      <th class="pb-3 pr-4 font-medium">Órgão / fornecedor</th>
+                      <th class="pb-3 pr-4 font-medium">Categoria</th>
+                      <th class="pb-3 pr-4 text-right font-medium">Valor</th>
+                      <th class="pb-3 text-right font-medium">Risco</th>
+                    </tr>
+                  </thead>
+                  <tbody id="contract-rows"></tbody>
+                </table>
+              </div>
+              <div class="mt-4 flex items-center justify-between">
+                <p id="table-message" class="text-sm muted" aria-live="polite"></p>
+                <div class="flex gap-2">
+                  <button id="previous-page" type="button" class="surface rounded-lg px-3 py-2 text-sm disabled:opacity-40">Anterior</button>
+                  <button id="next-page" type="button" class="surface rounded-lg px-3 py-2 text-sm disabled:opacity-40">Próxima</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="surface rounded-2xl p-5 sm:p-6">
+              <div class="mb-4">
+                <h2 class="text-lg font-semibold">Anomalias por categoria</h2>
+                <p class="mt-1 text-sm muted">Contratos com risco médio, alto ou crítico.</p>
+              </div>
+              <div class="relative mx-auto h-[260px] max-w-[360px]">
+                <canvas id="anomaly-chart" aria-label="Gráfico de anomalias por categoria" role="img"></canvas>
+                <p id="chart-empty" class="absolute inset-0 grid place-items-center text-center text-sm muted">Nenhuma anomalia registrada.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <section id="ingestion-panel" class="surface mb-8 rounded-2xl p-5 sm:p-7">
+          <div class="mb-6">
+            <p class="mb-2 text-sm font-semibold text-teal-400">Ingestão de dados</p>
+            <h2 class="text-2xl font-bold">Cadastrar contrato</h2>
+            <p class="mt-2 text-sm muted">Preencha os dados oficiais. O sistema calcula o nível de risco ao salvar.</p>
+          </div>
+          <form id="contract-form" class="grid gap-x-4 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+            <label class="text-sm">Número do processo
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="numeroProcesso" maxlength="80" required>
+            </label>
+            <label class="text-sm">Número do contrato
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="numeroContrato" maxlength="80" required>
+            </label>
+            <label class="text-sm">Categoria
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="categoria" maxlength="120" placeholder="Ex.: Tecnologia da informação" required>
+            </label>
+            <label class="text-sm sm:col-span-2">Objeto do contrato
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="objeto" maxlength="2000" required>
+            </label>
+            <label class="text-sm">Órgão contratante
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="orgaoContratante" maxlength="200" required>
+            </label>
+            <label class="text-sm">CNPJ do contratado
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="cnpjContratado" maxlength="18" placeholder="Somente números ou formatado" required>
+            </label>
+            <label class="text-sm">Nome do contratado
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="nomeContratado" maxlength="200" required>
+            </label>
+            <label class="text-sm">Valor contratado (R$)
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="valorContratado" type="number" min="0" step="0.01" required>
+            </label>
+            <label class="text-sm">Orçamento previsto (R$)
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="valorOrcamento" type="number" min="0" step="0.01">
+            </label>
+            <label class="text-sm">Tipo de contratação
+              <select class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="tipoContratacao" required>
+                <option value="LICITACAO">Licitação</option>
+                <option value="DISPENSA">Dispensa</option>
+                <option value="INEXIGIBILIDADE">Inexigibilidade</option>
+                <option value="CONTRATACAO_DIRETA">Contratação direta</option>
+              </select>
+            </label>
+            <label class="text-sm">Data de assinatura
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="dataAssinatura" type="date" required>
+            </label>
+            <label class="text-sm">Início da vigência
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="inicioVigencia" type="date" required>
+            </label>
+            <label class="text-sm">Fim da vigência
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="fimVigencia" type="date" required>
+            </label>
+            <div class="flex flex-wrap items-center gap-4 sm:col-span-2 xl:col-span-3">
+              <button id="submit-contract" class="accent-button rounded-lg px-5 py-2.5 font-semibold disabled:cursor-wait disabled:opacity-60" type="submit">Cadastrar contrato</button>
+              <p id="form-message" class="text-sm" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <footer class="mt-8 border-t pt-5 text-xs muted" style="border-color:var(--line)">
+      AuditaGov · Indicadores de risco são sinais para análise humana e não constituem prova de irregularidade.
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+      const api = "/api";
+      const tokenKey = "auditagov.accessToken";
+      const themeKey = "auditagov.theme";
+      const readRoles = ["ROLE_AUDITOR", "ROLE_ANALISTA", "ROLE_ADMIN"];
+      const writeRoles = ["ROLE_INGESTOR", "ROLE_ADMIN"];
+      const riskLabels = { BAIXO: "Baixo", MEDIO: "Médio", ALTO: "Alto", CRITICO: "Crítico" };
+      let token = localStorage.getItem(tokenKey);
+      let roles = [];
+      let pageNumber = 0;
+      let totalPages = 0;
+      let chart;
+
+      const byId = (id) => document.getElementById(id);
+      const formatter = new Intl.NumberFormat("pt-BR");
+      const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+      function today() {
+        const date = new Date();
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      }
+
+      function decodeRoles(jwt) {
+        try {
+          const payload = JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+          return Array.isArray(payload.roles)
+            ? payload.roles.map((role) => role.startsWith("ROLE_") ? role : `ROLE_${role}`)
+            : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem(themeKey, theme);
+        byId("theme-toggle").textContent = theme === "dark" ? "Tema claro" : "Tema escuro";
+        if (chart) {
+          chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
+          chart.update();
+        }
+      }
+
+      function showLoggedIn() {
+        byId("login-panel").classList.add("hidden");
+        byId("dashboard").classList.remove("hidden");
+        byId("logout-button").classList.remove("hidden");
+        const canRead = readRoles.some((role) => roles.includes(role));
+        const canWrite = writeRoles.some((role) => roles.includes(role));
+        byId("read-dashboard").classList.toggle("hidden", !canRead);
+        byId("read-access-notice").classList.toggle("hidden", canRead);
+        byId("ingestion-panel").classList.toggle("hidden", !canWrite);
+        if (canRead) refreshDashboard();
+        if (canWrite) setDateDefaults();
+      }
+
+      function setDateDefaults() {
+        const date = today();
+        const signature = document.querySelector('[name="dataAssinatura"]');
+        const start = document.querySelector('[name="inicioVigencia"]');
+        const end = document.querySelector('[name="fimVigencia"]');
+        if (!signature.value) signature.value = date;
+        if (!start.value) start.value = date;
+        if (!end.value) {
+          const nextYear = new Date(`${date}T12:00:00`);
+          nextYear.setFullYear(nextYear.getFullYear() + 1);
+          end.value = `${nextYear.getFullYear()}-${String(nextYear.getMonth() + 1).padStart(2, "0")}-${String(nextYear.getDate()).padStart(2, "0")}`;
+        }
+      }
+
+      async function request(path, options = {}) {
+        const headers = new Headers(options.headers || {});
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+        if (options.body) headers.set("Content-Type", "application/json");
+        const response = await fetch(path, { ...options, headers });
+        if (response.status === 401) {
+          localStorage.removeItem(tokenKey);
+          token = null;
+          roles = [];
+          byId("dashboard").classList.add("hidden");
+          byId("logout-button").classList.add("hidden");
+          byId("login-panel").classList.remove("hidden");
+          throw new Error("Sua sessão expirou. Entre novamente.");
+        }
+        if (response.status === 403) throw new Error("Seu perfil não tem permissão para esta operação.");
+        if (!response.ok) {
+          let message = `Não foi possível concluir a operação (HTTP ${response.status}).`;
+          try {
+            const problem = await response.json();
+            message = problem.detail || problem.message || message;
+          } catch { /* Resposta sem corpo JSON. */ }
+          throw new Error(message);
+        }
+        return response.status === 204 ? null : response.json();
+      }
+
+      async function refreshHealth() {
+        const dot = byId("health-dot");
+        try {
+          const response = await fetch("/actuator/health", { cache: "no-store" });
+          if (!response.ok) throw new Error("Health check indisponível");
+          const health = await response.json();
+          const up = health.status === "UP";
+          byId("health-label").textContent = up ? "Operacional" : "Atenção";
+          byId("platform-health").textContent = up ? "Operacional" : "Atenção";
+          dot.className = `h-2.5 w-2.5 rounded-full ${up ? "bg-emerald-400" : "bg-amber-400"}`;
+        } catch {
+          byId("health-label").textContent = "Indisponível";
+          byId("platform-health").textContent = "Indisponível";
+          dot.className = "h-2.5 w-2.5 rounded-full bg-rose-400";
+        }
+      }
+
+      function addCell(row, value, className = "") {
+        const cell = document.createElement("td");
+        cell.className = `py-3 pr-4 ${className}`;
+        cell.textContent = value ?? "—";
+        row.appendChild(cell);
+        return cell;
+      }
+
+      function renderContracts(contracts) {
+        const body = byId("contract-rows");
+        body.replaceChildren();
+        if (!contracts.length) {
+          byId("table-message").textContent = "Nenhum contrato encontrado.";
+          return;
+        }
+        byId("table-message").textContent = "";
+        for (const contract of contracts) {
+          const row = document.createElement("tr");
+          row.className = "table-row";
+          const number = document.createElement("td");
+          number.className = "py-3 pr-4";
+          const process = document.createElement("span");
+          process.className = "block font-medium";
+          process.textContent = contract.numeroProcesso;
+          const reference = document.createElement("span");
+          reference.className = "mt-1 block text-xs muted";
+          reference.textContent = contract.numeroContrato;
+          number.append(process, reference);
+          row.appendChild(number);
+
+          const supplier = document.createElement("td");
+          supplier.className = "py-3 pr-4";
+          const agency = document.createElement("span");
+          agency.className = "block";
+          agency.textContent = contract.orgaoContratante;
+          const company = document.createElement("span");
+          company.className = "mt-1 block text-xs muted";
+          company.textContent = contract.nomeContratado;
+          supplier.append(agency, company);
+          row.appendChild(supplier);
+          addCell(row, contract.categoria);
+          addCell(row, currencyFormatter.format(Number(contract.valorContratado)), "text-right whitespace-nowrap");
+          const riskCell = addCell(row, "", "text-right");
+          const badge = document.createElement("span");
+          badge.className = `inline-flex rounded-full px-2.5 py-1 text-xs font-semibold risk-${contract.nivelRisco}`;
+          badge.textContent = riskLabels[contract.nivelRisco] || contract.nivelRisco;
+          riskCell.appendChild(badge);
+          body.appendChild(row);
+        }
+      }
+
+      function renderChart(distribution) {
+        const entries = Object.entries(distribution || {}).sort((a, b) => b[1] - a[1]);
+        const canvas = byId("anomaly-chart");
+        byId("chart-empty").classList.toggle("hidden", entries.length > 0);
+        if (chart) chart.destroy();
+        if (!entries.length || typeof Chart === "undefined") return;
+        chart = new Chart(canvas, {
+          type: "doughnut",
+          data: {
+            labels: entries.map(([category]) => category),
+            datasets: [{
+              data: entries.map(([, count]) => count),
+              backgroundColor: ["#55d6be", "#60a5fa", "#fbbf24", "#fb7185", "#a78bfa", "#fb923c", "#2dd4bf"],
+              borderColor: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim(),
+              borderWidth: 3,
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            cutout: "66%",
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  color: getComputedStyle(document.documentElement).getPropertyValue("--text").trim(),
+                  padding: 16,
+                  usePointStyle: true,
+                  pointStyle: "circle"
+                }
+              },
+              tooltip: { callbacks: { label: (item) => `${item.label}: ${formatter.format(item.raw)} contrato(s)` } }
+            }
+          }
+        });
+      }
+
+      async function refreshDashboard() {
+        await refreshHealth();
+        byId("table-message").textContent = "Carregando contratos…";
+        try {
+          const [summary, page] = await Promise.all([
+            request(`${api}/contratos/resumo`),
+            request(`${api}/contratos?page=${pageNumber}&size=20&sort=criadoEm,desc`)
+          ]);
+          byId("total-contracts").textContent = formatter.format(summary.totalContratos);
+          byId("suspicious-contracts").textContent = formatter.format(summary.contratosSuspeitos);
+          byId("audited-value").textContent = currencyFormatter.format(Number(summary.valorAuditado));
+          totalPages = page.totalPages;
+          byId("page-label").textContent = page.totalElements
+            ? `Página ${page.number + 1} de ${Math.max(page.totalPages, 1)} · ${formatter.format(page.totalElements)} registros`
+            : "0 registros";
+          byId("previous-page").disabled = page.first;
+          byId("next-page").disabled = page.last || page.empty;
+          renderContracts(page.content || []);
+          renderChart(summary.anomaliasPorCategoria);
+        } catch (error) {
+          byId("table-message").textContent = error.message;
+          byId("login-message").textContent = error.message;
+        }
+      }
+
+      byId("login-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector('button[type="submit"]');
+        const data = new FormData(event.currentTarget);
+        button.disabled = true;
+        byId("login-message").textContent = "";
+        try {
+          const response = await fetch(`${api}/v1/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: data.get("username"), password: data.get("password") })
+          });
+          if (!response.ok) throw new Error(response.status === 401 ? "Usuário ou senha inválidos." : `Falha no login (HTTP ${response.status}).`);
+          const result = await response.json();
+          token = result.accessToken;
+          if (!token) throw new Error("O servidor não retornou um token de acesso.");
+          roles = decodeRoles(token);
+          localStorage.setItem(tokenKey, token);
+          event.currentTarget.reset();
+          showLoggedIn();
+        } catch (error) {
+          byId("login-message").textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      byId("contract-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        if (!form.reportValidity()) return;
+        const button = byId("submit-contract");
+        const data = new FormData(form);
+        const payload = Object.fromEntries(data.entries());
+        payload.valorContratado = Number(payload.valorContratado);
+        payload.valorOrcamento = payload.valorOrcamento ? Number(payload.valorOrcamento) : null;
+        button.disabled = true;
+        byId("form-message").textContent = "Enviando contrato…";
+        byId("form-message").className = "text-sm muted";
+        try {
+          const saved = await request(`${api}/contratos`, { method: "POST", body: JSON.stringify(payload) });
+          byId("form-message").textContent = `Contrato cadastrado. Nível de risco: ${riskLabels[saved.nivelRisco] || saved.nivelRisco}.`;
+          byId("form-message").className = "text-sm text-emerald-400";
+          form.reset();
+          setDateDefaults();
+          pageNumber = 0;
+          if (roles.some((role) => readRoles.includes(role))) await refreshDashboard();
+        } catch (error) {
+          byId("form-message").textContent = error.message;
+          byId("form-message").className = "text-sm text-rose-400";
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      byId("previous-page").addEventListener("click", () => {
+        if (pageNumber > 0) { pageNumber -= 1; refreshDashboard(); }
+      });
+      byId("next-page").addEventListener("click", () => {
+        if (pageNumber + 1 < totalPages) { pageNumber += 1; refreshDashboard(); }
+      });
+      byId("refresh-button").addEventListener("click", () => {
+        refreshHealth();
+        if (token && roles.some((role) => readRoles.includes(role))) refreshDashboard();
+      });
+      byId("logout-button").addEventListener("click", () => {
+        localStorage.removeItem(tokenKey);
+        token = null;
+        roles = [];
+        pageNumber = 0;
+        byId("dashboard").classList.add("hidden");
+        byId("logout-button").classList.add("hidden");
+        byId("login-panel").classList.remove("hidden");
+        byId("login-message").textContent = "Sessão encerrada.";
+      });
+      byId("theme-toggle").addEventListener("click", () => {
+        applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+      });
+
+      applyTheme(localStorage.getItem(themeKey) || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+      refreshHealth();
+      if (token) {
+        roles = decodeRoles(token);
+        showLoggedIn();
+      }
+    })();
+  </script>
+</body>
+</html>

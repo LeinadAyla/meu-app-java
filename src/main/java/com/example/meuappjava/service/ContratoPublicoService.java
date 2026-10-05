@@ -4,13 +4,18 @@ import com.example.meuappjava.domain.ContratoPublico;
 import com.example.meuappjava.domain.ResultadoAnomalia;
 import com.example.meuappjava.domain.dto.ContratoPublicoRequest;
 import com.example.meuappjava.domain.dto.ContratoPublicoResponse;
+import com.example.meuappjava.domain.dto.DashboardSummaryResponse;
+import com.example.meuappjava.domain.enums.NivelRisco;
 import com.example.meuappjava.domain.event.ContratoSuspeitoRegistrado;
 import com.example.meuappjava.repository.ContratoPublicoRepository;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,5 +70,23 @@ public class ContratoPublicoService {
     public Optional<ContratoPublicoResponse> buscarPorId(UUID id) {
         return repository.findById(id)
                 .map(ContratoPublicoResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public DashboardSummaryResponse resumo() {
+        Map<String, Long> anomaliasPorCategoria = repository
+                .contarAnomaliasPorCategoria(NivelRisco.BAIXO)
+                .stream()
+                .collect(Collectors.toMap(
+                        projection -> projection.getCategoria() == null
+                                ? "Sem categoria"
+                                : projection.getCategoria(),
+                        projection -> projection.getQuantidade(),
+                        Long::sum));
+        return new DashboardSummaryResponse(
+                repository.count(),
+                repository.countByNivelRiscoIn(List.of(NivelRisco.ALTO, NivelRisco.CRITICO)),
+                repository.totalValorContratado(),
+                anomaliasPorCategoria);
     }
 }

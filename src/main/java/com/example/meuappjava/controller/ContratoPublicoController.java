@@ -3,6 +3,7 @@ package com.example.meuappjava.controller;
 import com.example.meuappjava.audit.Auditado;
 import com.example.meuappjava.domain.dto.ContratoPublicoRequest;
 import com.example.meuappjava.domain.dto.ContratoPublicoResponse;
+import com.example.meuappjava.domain.dto.DashboardSummaryResponse;
 import com.example.meuappjava.service.ContratoPublicoService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
@@ -67,6 +68,20 @@ public class ContratoPublicoController {
     })
     public Page<ContratoPublicoResponse> listar(@PageableDefault(size = 20) Pageable pageable) {
         return service.listar(pageable);
+    }
+
+    @GetMapping("/resumo")
+    @Auditado("RESUMO_CONTRATOS_CONSULTADO")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'ANALISTA', 'ADMIN')")
+    @Operation(summary = "Consultar indicadores do dashboard",
+            description = "Retorna totais auditados e distribuição de anomalias por categoria.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Indicadores do dashboard"),
+            @ApiResponse(responseCode = "401", description = "Autenticação necessária"),
+            @ApiResponse(responseCode = "403", description = "Perfil sem permissão")
+    })
+    public DashboardSummaryResponse resumo() {
+        return service.resumo();
     }
 
     @GetMapping("/{id}")
