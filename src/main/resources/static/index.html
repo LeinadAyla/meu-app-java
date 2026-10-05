@@ -7,6 +7,7 @@
   <meta name="description" content="Painel executivo AuditaGov para transparência e auditoria de contratos públicos.">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>AuditaGov | Painel executivo</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
@@ -32,13 +33,16 @@
       --accent: #087e72;
       --accent-ink: #ffffff;
     }
-    body { background: var(--page); color: var(--text); }
-    .surface { background: var(--surface); border: 1px solid var(--line); }
-    .surface-raised { background: var(--surface-raised); border: 1px solid var(--line); }
+    body { background: var(--page); color: var(--text); transition: background-color .2s ease, color .2s ease; }
+    .surface { background: var(--surface); border: 1px solid var(--line); transition: background-color .2s ease, border-color .2s ease; }
+    .surface-raised { background: var(--surface-raised); border: 1px solid var(--line); transition: background-color .2s ease, border-color .2s ease; }
     .muted { color: var(--muted); }
-    .field { background: var(--surface-raised); border: 1px solid var(--line); color: var(--text); }
+    .field { background: var(--surface-raised); border: 1px solid var(--line); color: var(--text); transition: background-color .2s ease, border-color .2s ease, color .2s ease; }
     .field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
     .accent-button { background: var(--accent); color: var(--accent-ink); }
+    @media (prefers-reduced-motion: reduce) {
+      body, .surface, .surface-raised, .field { transition: none; }
+    }
     .risk-BAIXO { color: #34d399; background: #064e3b55; }
     .risk-MEDIO { color: #fbbf24; background: #78350f55; }
     .risk-ALTO { color: #fb923c; background: #7c2d1255; }
@@ -58,9 +62,15 @@
         </span>
       </a>
       <div class="flex items-center gap-2">
-        <a href="/swagger-ui/index.html" class="rounded-lg px-3 py-2 text-sm muted hover:text-current">API docs</a>
-        <button id="theme-toggle" type="button" class="surface rounded-lg px-3 py-2 text-sm" aria-label="Alternar tema">Tema</button>
-        <button id="logout-button" type="button" class="hidden rounded-lg px-3 py-2 text-sm muted hover:text-current">Sair</button>
+        <a href="/swagger-ui/index.html" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm muted transition-colors hover:text-current">
+          <i class="bi bi-journal-code" aria-hidden="true"></i><span>API docs</span>
+        </a>
+        <button id="theme-toggle" type="button" class="surface inline-flex h-10 w-10 items-center justify-center rounded-lg text-base transition-colors hover:border-teal-400" aria-label="Alternar tema" title="Alternar tema">
+          <i id="theme-icon" class="bi bi-moon-stars-fill" aria-hidden="true"></i>
+        </button>
+        <button id="logout-button" type="button" class="hidden inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm muted transition-colors hover:text-current">
+          <i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>Sair</span>
+        </button>
       </div>
     </header>
 
@@ -73,8 +83,11 @@
         </div>
         <div class="surface flex items-center gap-3 rounded-xl px-4 py-3" aria-live="polite">
           <span id="health-dot" class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
+          <i id="health-status-icon" class="bi bi-activity muted" aria-hidden="true"></i>
           <span class="text-sm"><span class="muted">Serviço</span> <strong id="health-label" class="ml-1">Verificando…</strong></span>
-          <button id="refresh-button" type="button" class="ml-2 text-sm text-teal-400 hover:underline">Atualizar</button>
+          <button id="refresh-button" type="button" class="ml-2 inline-flex items-center gap-1.5 text-sm text-teal-400 transition-opacity hover:opacity-75">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span>Atualizar</span>
+          </button>
         </div>
       </section>
 
@@ -92,7 +105,9 @@
             <label class="block text-sm">Senha
               <input id="login-password" class="field mt-1.5 w-full rounded-lg px-3 py-2.5" type="password" name="password" autocomplete="current-password" required>
             </label>
-            <button class="accent-button rounded-lg px-5 py-2.5 font-semibold disabled:cursor-wait disabled:opacity-60" type="submit">Entrar</button>
+            <button class="accent-button inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60" type="submit">
+              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i><span>Entrar</span>
+            </button>
             <div class="flex flex-wrap gap-2 sm:col-span-3" aria-label="Atalhos de perfil">
               <button class="surface rounded-lg px-3 py-2 text-xs hover:border-teal-400" type="button" data-demo-user="ingestor">Entrar como Ingestor</button>
               <button class="surface rounded-lg px-3 py-2 text-xs hover:border-teal-400" type="button" data-demo-user="auditor">Entrar como Auditor</button>
@@ -143,11 +158,14 @@
                 <span id="page-label" class="text-xs muted"></span>
               </div>
               <div class="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_180px_220px_auto]">
-                <label class="text-xs muted">Busca
-                  <input id="contract-search" class="field mt-1.5 w-full rounded-lg px-3 py-2.5 text-sm"
-                         type="search" placeholder="Processo, fornecedor, órgão ou objeto" autocomplete="off">
+                <label class="text-xs muted"><i class="bi bi-search mr-1" aria-hidden="true"></i>Busca
+                  <span class="relative mt-1.5 block">
+                    <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm muted" aria-hidden="true"></i>
+                    <input id="contract-search" class="field w-full rounded-lg py-2.5 pl-9 pr-3 text-sm"
+                           type="search" placeholder="Processo, fornecedor, órgão ou objeto" autocomplete="off">
+                  </span>
                 </label>
-                <label class="text-xs muted">Nível de risco
+                <label class="text-xs muted"><i class="bi bi-shield-exclamation mr-1" aria-hidden="true"></i>Nível de risco
                   <select id="risk-filter" class="field mt-1.5 w-full rounded-lg px-3 py-2.5 text-sm">
                     <option value="">Todos os níveis</option>
                     <option value="CRITICO">Crítico</option>
@@ -156,13 +174,13 @@
                     <option value="BAIXO">Baixo</option>
                   </select>
                 </label>
-                <label class="text-xs muted">Categoria
+                <label class="text-xs muted"><i class="bi bi-tags mr-1" aria-hidden="true"></i>Categoria
                   <select id="category-filter" class="field mt-1.5 w-full rounded-lg px-3 py-2.5 text-sm">
                     <option value="">Todas as categorias</option>
                   </select>
                 </label>
-                <button id="export-csv" type="button" class="accent-button self-end rounded-lg px-4 py-2.5 text-sm font-semibold">
-                  Exportar relatório CSV
+                <button id="export-csv" type="button" class="accent-button inline-flex items-center justify-center gap-2 self-end rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90">
+                  <i class="bi bi-file-earmark-spreadsheet-fill" aria-hidden="true"></i><span>Exportar relatório CSV</span>
                 </button>
               </div>
               <div class="overflow-x-auto">
@@ -205,7 +223,7 @@
         <section id="simulator-panel" class="surface mb-8 rounded-2xl p-5 sm:p-7">
           <div class="mb-6">
             <p class="mb-2 text-sm font-semibold text-teal-400">Análise preventiva</p>
-            <h2 class="text-2xl font-bold">Simulador de risco</h2>
+            <h2 class="flex items-center gap-2 text-2xl font-bold"><i class="bi bi-cpu-fill text-teal-400" aria-hidden="true"></i><span>Simulador de risco</span></h2>
             <p class="mt-2 text-sm muted">Faça uma estimativa antes de cadastrar. A simulação não grava dados e não substitui a análise oficial.</p>
           </div>
           <form id="simulator-form" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -231,7 +249,9 @@
               </select>
             </label>
             <div class="flex flex-wrap items-center gap-4 sm:col-span-2 xl:col-span-5">
-              <button id="simulate-button" class="accent-button rounded-lg px-5 py-2.5 font-semibold disabled:cursor-wait disabled:opacity-60" type="submit">Simular análise</button>
+              <button id="simulate-button" class="accent-button inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60" type="submit">
+                <i class="bi bi-shield-check" aria-hidden="true"></i><span>Simular análise</span>
+              </button>
               <p id="simulator-status" class="text-sm muted" role="status" aria-live="polite">Preencha os dados para receber uma estimativa.</p>
             </div>
           </form>
@@ -396,7 +416,12 @@
       function applyTheme(theme) {
         document.documentElement.dataset.theme = theme;
         localStorage.setItem(themeKey, theme);
-        byId("theme-toggle").textContent = theme === "dark" ? "Tema claro" : "Tema escuro";
+        const themeToggle = byId("theme-toggle");
+        const themeIcon = byId("theme-icon");
+        const action = theme === "dark" ? "claro" : "escuro";
+        themeIcon.className = `bi ${theme === "dark" ? "bi-sun-fill" : "bi-moon-stars-fill"}`;
+        themeToggle.setAttribute("aria-label", `Alternar para tema ${action}`);
+        themeToggle.title = `Alternar para tema ${action}`;
         if (chart) {
           chart.options.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
           chart.update();
@@ -471,10 +496,12 @@
           byId("health-label").textContent = up ? "Operacional" : "Atenção";
           byId("platform-health").textContent = up ? "Operacional" : "Atenção";
           dot.className = `h-2.5 w-2.5 rounded-full ${up ? "bg-emerald-400" : "bg-amber-400"}`;
+          byId("health-status-icon").className = `bi ${up ? "bi-check-circle-fill text-emerald-400" : "bi-exclamation-triangle-fill text-amber-400"}`;
         } catch {
           byId("health-label").textContent = "Indisponível";
           byId("platform-health").textContent = "Indisponível";
           dot.className = "h-2.5 w-2.5 rounded-full bg-rose-400";
+          byId("health-status-icon").className = "bi bi-x-circle-fill text-rose-400";
         }
       }
 
@@ -661,7 +688,7 @@
           if (token) byId("table-message").textContent = error.message;
         } finally {
           button.disabled = false;
-          button.textContent = "Exportar relatório CSV";
+          button.querySelector("span").textContent = "Exportar relatório CSV";
         }
       }
 
