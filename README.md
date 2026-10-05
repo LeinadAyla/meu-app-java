@@ -52,7 +52,9 @@ A comparação histórica usa a média dos contratos persistidos anteriormente n
 
 ## Painel executivo
 
-A página inicial (`/`) serve o dashboard responsivo com tema claro/escuro, indicadores de contratos e valores, contratos paginados, gráfico de anomalias por categoria e formulário de ingestão. Entre com o perfil `auditor` ou `admin` para consultar os indicadores; o perfil `ingestor` pode cadastrar contratos. O painel persiste o JWT no `localStorage` deste navegador e o remove ao sair ou quando a API rejeita a sessão. A rota `/api/contratos/resumo` agrega os valores e riscos diretamente na base de dados.
+A página inicial (`/`) serve o dashboard responsivo com tema claro/escuro, indicadores de contratos e valores, contratos paginados, busca por texto, filtros de risco/categoria, exportação CSV, ficha de auditoria e formulário de ingestão. O simulador preventivo consulta `POST /api/contratos/simulacao-risco`; filtros são aplicados pela API e a rota `/api/contratos/resumo` agrega valores e riscos diretamente na base de dados. Entre com o perfil `auditor` ou `admin` para consultar os indicadores; o perfil `ingestor` pode cadastrar contratos. O painel persiste o JWT no `localStorage` deste navegador e o remove ao sair ou quando a API rejeita a sessão.
+
+O score do simulador (0–100) resume as regras configuradas: baixo 10, médio 35, alto 70 e crítico 90. Vigências estimadas acima de 60 meses acrescentam um sinal de revisão. A simulação é indicativa, não persiste dados, não consulta cadastro/histórico do fornecedor e não substitui a classificação oficial na ingestão.
 
 ## Executar com Docker Compose
 

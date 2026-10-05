@@ -5,6 +5,8 @@ import com.example.meuappjava.domain.ResultadoAnomalia;
 import com.example.meuappjava.domain.dto.ContratoPublicoRequest;
 import com.example.meuappjava.domain.dto.ContratoPublicoResponse;
 import com.example.meuappjava.domain.dto.DashboardSummaryResponse;
+import com.example.meuappjava.domain.dto.SimulacaoRiscoRequest;
+import com.example.meuappjava.domain.dto.SimulacaoRiscoResponse;
 import com.example.meuappjava.domain.enums.NivelRisco;
 import com.example.meuappjava.domain.event.ContratoSuspeitoRegistrado;
 import com.example.meuappjava.repository.ContratoPublicoRepository;
@@ -64,6 +66,30 @@ public class ContratoPublicoService {
     public Page<ContratoPublicoResponse> listar(Pageable pageable) {
         return repository.findAll(pageable)
                 .map(ContratoPublicoResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ContratoPublicoResponse> listar(
+            Pageable pageable,
+            NivelRisco nivelRisco,
+            String categoria,
+            String busca) {
+        String consulta = busca == null ? "" : busca.strip();
+        return repository.buscarContratos(
+                        nivelRisco,
+                        categoria == null ? "" : categoria.strip(),
+                        consulta,
+                        pageable)
+                .map(ContratoPublicoResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listarCategorias() {
+        return repository.listarCategorias();
+    }
+
+    public SimulacaoRiscoResponse simular(SimulacaoRiscoRequest request) {
+        return anomaliaService.simular(request);
     }
 
     @Transactional(readOnly = true)

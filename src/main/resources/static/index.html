@@ -138,19 +138,43 @@
               <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 class="text-lg font-semibold">Contratos recentes</h2>
-                  <p class="mt-1 text-sm muted">Consulte nível de risco, fornecedor e valores.</p>
+                  <p class="mt-1 text-sm muted">Pesquise e filtre contratos; os resultados atualizam em tempo real.</p>
                 </div>
                 <span id="page-label" class="text-xs muted"></span>
               </div>
+              <div class="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_180px_220px_auto]">
+                <label class="text-xs muted">Busca
+                  <input id="contract-search" class="field mt-1.5 w-full rounded-lg px-3 py-2.5 text-sm"
+                         type="search" placeholder="Processo, fornecedor, órgão ou objeto" autocomplete="off">
+                </label>
+                <label class="text-xs muted">Nível de risco
+                  <select id="risk-filter" class="field mt-1.5 w-full rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Todos os níveis</option>
+                    <option value="CRITICO">Crítico</option>
+                    <option value="ALTO">Alto</option>
+                    <option value="MEDIO">Médio</option>
+                    <option value="BAIXO">Baixo</option>
+                  </select>
+                </label>
+                <label class="text-xs muted">Categoria
+                  <select id="category-filter" class="field mt-1.5 w-full rounded-lg px-3 py-2.5 text-sm">
+                    <option value="">Todas as categorias</option>
+                  </select>
+                </label>
+                <button id="export-csv" type="button" class="accent-button self-end rounded-lg px-4 py-2.5 text-sm font-semibold">
+                  Exportar relatório CSV
+                </button>
+              </div>
               <div class="overflow-x-auto">
-                <table class="w-full min-w-[760px] text-left text-sm">
+                <table class="w-full min-w-[900px] text-left text-sm">
                   <thead class="muted">
                     <tr class="border-b" style="border-color:var(--line)">
                       <th class="pb-3 pr-4 font-medium">Processo / contrato</th>
                       <th class="pb-3 pr-4 font-medium">Órgão / fornecedor</th>
                       <th class="pb-3 pr-4 font-medium">Categoria</th>
                       <th class="pb-3 pr-4 text-right font-medium">Valor</th>
-                      <th class="pb-3 text-right font-medium">Risco</th>
+                      <th class="pb-3 pr-4 text-right font-medium">Risco</th>
+                      <th class="pb-3 text-right font-medium">Detalhes</th>
                     </tr>
                   </thead>
                   <tbody id="contract-rows"></tbody>
@@ -177,6 +201,58 @@
             </section>
           </div>
         </div>
+
+        <section id="simulator-panel" class="surface mb-8 rounded-2xl p-5 sm:p-7">
+          <div class="mb-6">
+            <p class="mb-2 text-sm font-semibold text-teal-400">Análise preventiva</p>
+            <h2 class="text-2xl font-bold">Simulador de risco</h2>
+            <p class="mt-2 text-sm muted">Faça uma estimativa antes de cadastrar. A simulação não grava dados e não substitui a análise oficial.</p>
+          </div>
+          <form id="simulator-form" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <label class="text-sm">Valor estimado (R$)
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="valor" type="number" min="0" step="0.01" required>
+            </label>
+            <label class="text-sm">Categoria
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="categoria" list="category-options" maxlength="120" required>
+            </label>
+            <datalist id="category-options"></datalist>
+            <label class="text-sm">Duração (meses)
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="duracaoMeses" type="number" min="1" max="1200" value="12" required>
+            </label>
+            <label class="text-sm">Fornecedor previsto
+              <input class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="fornecedor" maxlength="200" required>
+            </label>
+            <label class="text-sm">Tipo de contratação
+              <select class="field mt-1.5 w-full rounded-lg px-3 py-2.5" name="tipoContratacao" required>
+                <option value="LICITACAO">Licitação</option>
+                <option value="DISPENSA">Dispensa</option>
+                <option value="INEXIGIBILIDADE">Inexigibilidade</option>
+                <option value="CONTRATACAO_DIRETA">Contratação direta</option>
+              </select>
+            </label>
+            <div class="flex flex-wrap items-center gap-4 sm:col-span-2 xl:col-span-5">
+              <button id="simulate-button" class="accent-button rounded-lg px-5 py-2.5 font-semibold disabled:cursor-wait disabled:opacity-60" type="submit">Simular análise</button>
+              <p id="simulator-status" class="text-sm muted" role="status" aria-live="polite">Preencha os dados para receber uma estimativa.</p>
+            </div>
+          </form>
+          <section id="simulator-result" class="surface-raised mt-5 hidden rounded-xl p-5" aria-live="polite">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wider muted">Estimativa de risco</p>
+                <h3 id="simulator-risk" class="mt-1 text-xl font-bold"></h3>
+                <p id="simulator-summary" class="mt-1 text-sm muted"></p>
+              </div>
+              <div class="min-w-36">
+                <div class="mb-2 flex justify-between text-xs"><span>Score</span><strong id="simulator-score-label"></strong></div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-500/20">
+                  <div id="simulator-score-bar" class="h-full rounded-full transition-all"></div>
+                </div>
+              </div>
+            </div>
+            <ul id="simulator-signals" class="mt-4 list-inside list-disc space-y-1 text-sm"></ul>
+            <ul id="simulator-limitations" class="mt-3 space-y-1 text-xs muted"></ul>
+          </section>
+        </section>
 
         <section id="ingestion-panel" class="surface mb-8 rounded-2xl p-5 sm:p-7">
           <div class="mb-6">
@@ -238,6 +314,17 @@
       </section>
     </main>
 
+    <dialog id="contract-dialog" class="surface m-auto max-h-[90vh] w-[min(720px,calc(100%-2rem))] overflow-y-auto rounded-2xl p-0 text-inherit backdrop:bg-slate-950/70">
+      <div class="sticky top-0 flex items-center justify-between border-b p-5" style="background:var(--surface);border-color:var(--line)">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-teal-400">Ficha de auditoria</p>
+          <h2 id="dialog-title" class="mt-1 text-xl font-bold">Detalhes do contrato</h2>
+        </div>
+        <button id="dialog-close" type="button" class="surface rounded-lg px-3 py-2 text-sm" aria-label="Fechar detalhes">Fechar</button>
+      </div>
+      <div id="dialog-content" class="grid gap-4 p-5 sm:grid-cols-2"></div>
+    </dialog>
+
     <footer class="mt-8 border-t pt-5 text-xs muted" style="border-color:var(--line)">
       AuditaGov · Indicadores de risco são sinais para análise humana e não constituem prova de irregularidade.
     </footer>
@@ -257,6 +344,10 @@
       let pageNumber = 0;
       let totalPages = 0;
       let chart;
+      let dashboardController;
+      let searchTimer;
+      let simulationTimer;
+      let simulationController;
 
       const byId = (id) => document.getElementById(id);
       const formatter = new Intl.NumberFormat("pt-BR");
@@ -267,6 +358,8 @@
         token = null;
         roles = [];
         pageNumber = 0;
+        if (dashboardController) dashboardController.abort();
+        if (simulationController) simulationController.abort();
         byId("dashboard").classList.add("hidden");
         byId("logout-button").classList.add("hidden");
         byId("login-panel").classList.remove("hidden");
@@ -319,7 +412,10 @@
         byId("read-dashboard").classList.toggle("hidden", !canRead);
         byId("read-access-notice").classList.toggle("hidden", canRead);
         byId("ingestion-panel").classList.toggle("hidden", !canWrite);
-        if (canRead) refreshDashboard();
+        if (canRead) {
+          loadCategories();
+          refreshDashboard();
+        }
         if (canWrite) setDateDefaults();
       }
 
@@ -390,6 +486,42 @@
         return cell;
       }
 
+      function currentFilters() {
+        return {
+          busca: byId("contract-search").value.trim(),
+          nivelRisco: byId("risk-filter").value,
+          categoria: byId("category-filter").value
+        };
+      }
+
+      function contractsUrl(page, size = 20, filters = currentFilters()) {
+        const params = new URLSearchParams({ page: String(page), size: String(size), sort: "criadoEm,desc" });
+        if (filters.busca) params.set("busca", filters.busca);
+        if (filters.nivelRisco) params.set("nivelRisco", filters.nivelRisco);
+        if (filters.categoria) params.set("categoria", filters.categoria);
+        return `${api}/contratos?${params.toString()}`;
+      }
+
+      async function loadCategories() {
+        try {
+          const categories = await request(`${api}/contratos/categorias`);
+          const filter = byId("category-filter");
+          const selected = filter.value;
+          filter.replaceChildren(new Option("Todas as categorias", ""));
+          const datalist = byId("category-options");
+          datalist.replaceChildren();
+          for (const category of categories) {
+            filter.appendChild(new Option(category, category));
+            const option = document.createElement("option");
+            option.value = category;
+            datalist.appendChild(option);
+          }
+          filter.value = selected;
+        } catch (error) {
+          if (token) byId("table-message").textContent = error.message;
+        }
+      }
+
       function renderContracts(contracts) {
         const body = byId("contract-rows");
         body.replaceChildren();
@@ -424,13 +556,192 @@
           row.appendChild(supplier);
           addCell(row, contract.categoria);
           addCell(row, currencyFormatter.format(Number(contract.valorContratado)), "text-right whitespace-nowrap");
-          const riskCell = addCell(row, "", "text-right");
+          const riskCell = addCell(row, "", "pr-4 text-right");
           const badge = document.createElement("span");
           badge.className = `inline-flex rounded-full px-2.5 py-1 text-xs font-semibold risk-${contract.nivelRisco}`;
           badge.textContent = riskLabels[contract.nivelRisco] || contract.nivelRisco;
           riskCell.appendChild(badge);
+          const detailsCell = document.createElement("td");
+          detailsCell.className = "py-3 text-right";
+          const detailsButton = document.createElement("button");
+          detailsButton.type = "button";
+          detailsButton.className = "surface rounded-lg px-3 py-1.5 text-xs hover:border-teal-400";
+          detailsButton.textContent = "Ver detalhes";
+          detailsButton.addEventListener("click", () => showContractDetails(contract));
+          detailsCell.appendChild(detailsButton);
+          row.appendChild(detailsCell);
           body.appendChild(row);
         }
+      }
+
+      function showContractDetails(contract) {
+        byId("dialog-title").textContent = `${contract.numeroProcesso} · ${contract.numeroContrato}`;
+        const content = byId("dialog-content");
+        content.replaceChildren();
+        const fields = [
+          ["Nível de risco", riskLabels[contract.nivelRisco] || contract.nivelRisco],
+          ["Categoria", contract.categoria],
+          ["Objeto", contract.objeto],
+          ["Órgão contratante", contract.orgaoContratante],
+          ["Fornecedor", contract.nomeContratado],
+          ["CNPJ", contract.cnpjContratado],
+          ["Tipo de contratação", contract.tipoContratacao],
+          ["Valor contratado", currencyFormatter.format(Number(contract.valorContratado))],
+          ["Orçamento", contract.valorOrcamento == null ? "Não informado" : currencyFormatter.format(Number(contract.valorOrcamento))],
+          ["Data de assinatura", contract.dataAssinatura],
+          ["Início da vigência", contract.inicioVigencia],
+          ["Fim da vigência", contract.fimVigencia],
+          ["Sinais de anomalia", contract.detalhesAnomalia || "Nenhum sinal identificado pelas regras atuais."],
+          ["Identificador", contract.id],
+          ["Incluído em", contract.criadoEm ? new Date(contract.criadoEm).toLocaleString("pt-BR") : "—"]
+        ];
+        for (const [label, value] of fields) {
+          const item = document.createElement("div");
+          item.className = "surface-raised min-w-0 rounded-lg p-3";
+          const title = document.createElement("p");
+          title.className = "text-xs muted";
+          title.textContent = label;
+          const detail = document.createElement("p");
+          detail.className = "mt-1 break-words text-sm font-medium";
+          detail.textContent = value ?? "—";
+          item.append(title, detail);
+          content.appendChild(item);
+        }
+        byId("contract-dialog").showModal();
+      }
+
+      function csvValue(value) {
+        let text = value == null ? "" : String(value);
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+
+      async function exportCsv() {
+        const button = byId("export-csv");
+        button.disabled = true;
+        button.textContent = "Preparando CSV…";
+        try {
+          const filters = currentFilters();
+          const allContracts = [];
+          let currentPage = 0;
+          let lastPage = false;
+          do {
+            const page = await request(contractsUrl(currentPage, 100, filters));
+            allContracts.push(...page.content);
+            lastPage = page.last;
+            currentPage += 1;
+          } while (!lastPage);
+
+          const columns = [
+            ["Processo", "numeroProcesso"], ["Contrato", "numeroContrato"],
+            ["Categoria", "categoria"], ["Órgão", "orgaoContratante"],
+            ["Fornecedor", "nomeContratado"], ["CNPJ", "cnpjContratado"],
+            ["Objeto", "objeto"], ["Tipo de contratação", "tipoContratacao"],
+            ["Valor contratado", "valorContratado"], ["Orçamento", "valorOrcamento"],
+            ["Risco", "nivelRisco"], ["Sinais", "detalhesAnomalia"],
+            ["Assinatura", "dataAssinatura"], ["Início da vigência", "inicioVigencia"],
+            ["Fim da vigência", "fimVigencia"], ["ID", "id"]
+          ];
+          const lines = [
+            columns.map(([label]) => csvValue(label)).join(";"),
+            ...allContracts.map((contract) =>
+              columns.map(([, key]) => csvValue(contract[key])).join(";"))
+          ];
+          const blob = new Blob(["\uFEFF", lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `auditagov-contratos-${today()}.csv`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          byId("table-message").textContent = `${formatter.format(allContracts.length)} contrato(s) exportado(s).`;
+        } catch (error) {
+          if (token) byId("table-message").textContent = error.message;
+        } finally {
+          button.disabled = false;
+          button.textContent = "Exportar relatório CSV";
+        }
+      }
+
+      async function runSimulation() {
+        const form = byId("simulator-form");
+        if (!form.reportValidity()) return;
+        if (simulationController) simulationController.abort();
+        simulationController = new AbortController();
+        const button = byId("simulate-button");
+        const formData = new FormData(form);
+        const payload = {
+          valor: Number(formData.get("valor")),
+          categoria: String(formData.get("categoria")).trim(),
+          duracaoMeses: Number(formData.get("duracaoMeses")),
+          fornecedor: String(formData.get("fornecedor")).trim(),
+          tipoContratacao: formData.get("tipoContratacao")
+        };
+        button.disabled = true;
+        byId("simulator-status").textContent = "Analisando regras e histórico da categoria…";
+        try {
+          const result = await request(`${api}/contratos/simulacao-risco`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+            signal: simulationController.signal
+          });
+          byId("simulator-result").classList.remove("hidden");
+          byId("simulator-risk").textContent = `Risco ${riskLabels[result.nivelRisco] || result.nivelRisco}`;
+          byId("simulator-summary").textContent = result.exigeRevisao
+            ? `Revisão recomendada para ${result.fornecedor}.`
+            : `Nenhum gatilho preventivo identificado para ${result.fornecedor}.`;
+          byId("simulator-score-label").textContent = `${result.score}/100`;
+          const bar = byId("simulator-score-bar");
+          bar.style.width = `${result.score}%`;
+          bar.className = `h-full rounded-full transition-all ${
+            result.nivelRisco === "CRITICO" ? "bg-rose-400" :
+              result.nivelRisco === "ALTO" ? "bg-orange-400" :
+                result.nivelRisco === "MEDIO" ? "bg-amber-400" : "bg-emerald-400"
+          }`;
+          const signals = byId("simulator-signals");
+          signals.replaceChildren();
+          if (result.sinais.length) {
+            for (const signal of result.sinais) {
+              const item = document.createElement("li");
+              item.textContent = signal;
+              signals.appendChild(item);
+            }
+          } else {
+            const item = document.createElement("li");
+            item.textContent = "Sem sinais de alerta conforme os dados disponíveis.";
+            signals.appendChild(item);
+          }
+          const limitations = byId("simulator-limitations");
+          limitations.replaceChildren();
+          for (const limitation of result.limitacoes) {
+            const item = document.createElement("li");
+            item.textContent = limitation;
+            limitations.appendChild(item);
+          }
+          byId("simulator-status").textContent = "Simulação concluída; nenhum contrato foi salvo.";
+        } catch (error) {
+          if (error.name !== "AbortError" && token) {
+            byId("simulator-status").textContent = error.message;
+            byId("simulator-result").classList.add("hidden");
+          }
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function scheduleSimulation() {
+        clearTimeout(simulationTimer);
+        simulationTimer = setTimeout(() => {
+          const form = byId("simulator-form");
+          const requiredValues = ["valor", "categoria", "duracaoMeses", "fornecedor", "tipoContratacao"];
+          if (requiredValues.some((name) => !String(form.elements[name].value).trim())) {
+            byId("simulator-status").textContent = "Preencha valor, categoria, duração, fornecedor e tipo de contratação.";
+            return;
+          }
+          runSimulation();
+        }, 350);
       }
 
       function renderChart(distribution) {
@@ -475,13 +786,18 @@
           if (token && !decodeClaims(token)) clearSession("Sua sessão expirou. Entre novamente.");
           return;
         }
+        if (dashboardController) dashboardController.abort();
+        dashboardController = new AbortController();
+        const signal = dashboardController.signal;
         await refreshHealth();
+        if (signal.aborted) return;
         byId("table-message").textContent = "Carregando contratos…";
         try {
           const [summary, page] = await Promise.all([
-            request(`${api}/contratos/resumo`),
-            request(`${api}/contratos?page=${pageNumber}&size=20&sort=criadoEm,desc`)
+            request(`${api}/contratos/resumo`, { signal }),
+            request(contractsUrl(pageNumber), { signal })
           ]);
+          if (signal.aborted) return;
           byId("total-contracts").textContent = formatter.format(summary.totalContratos);
           byId("suspicious-contracts").textContent = formatter.format(summary.contratosSuspeitos);
           byId("audited-value").textContent = currencyFormatter.format(Number(summary.valorAuditado));
@@ -494,7 +810,7 @@
           renderContracts(page.content || []);
           renderChart(summary.anomaliasPorCategoria);
         } catch (error) {
-          if (token) byId("table-message").textContent = error.message;
+          if (error.name !== "AbortError" && token) byId("table-message").textContent = error.message;
         }
       }
 
@@ -576,6 +892,26 @@
       byId("next-page").addEventListener("click", () => {
         if (pageNumber + 1 < totalPages) { pageNumber += 1; refreshDashboard(); }
       });
+      byId("contract-search").addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { pageNumber = 0; refreshDashboard(); }, 250);
+      });
+      byId("risk-filter").addEventListener("change", () => {
+        pageNumber = 0;
+        refreshDashboard();
+      });
+      byId("category-filter").addEventListener("change", () => {
+        pageNumber = 0;
+        refreshDashboard();
+      });
+      byId("export-csv").addEventListener("click", exportCsv);
+      byId("simulator-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        runSimulation();
+      });
+      byId("simulator-form").addEventListener("input", scheduleSimulation);
+      byId("simulator-form").addEventListener("change", scheduleSimulation);
+      byId("dialog-close").addEventListener("click", () => byId("contract-dialog").close());
       byId("refresh-button").addEventListener("click", () => {
         refreshHealth();
         if (token && roles.some((role) => readRoles.includes(role))) refreshDashboard();

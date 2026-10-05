@@ -1,11 +1,14 @@
 package com.example.meuappjava.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.example.meuappjava.config.AnomaliaProperties;
 import com.example.meuappjava.domain.ContratoPublico;
 import com.example.meuappjava.domain.ResultadoAnomalia;
+import com.example.meuappjava.domain.dto.SimulacaoRiscoRequest;
+import com.example.meuappjava.domain.dto.SimulacaoRiscoResponse;
 import com.example.meuappjava.domain.enums.NivelRisco;
 import com.example.meuappjava.domain.enums.TipoContratacao;
 import com.example.meuappjava.repository.ContratoPublicoRepository;
@@ -81,6 +84,24 @@ class AnomaliaServiceTest {
 
         assertEquals(NivelRisco.BAIXO, resultado.nivelRisco());
         assertEquals(0, resultado.alertas().size());
+    }
+
+    @Test
+    void simulaRiscoESinalizaVigenciaLongaSemPersistirContrato() {
+        when(repository.mediaValorPorCategoria("Nova categoria")).thenReturn(Optional.empty());
+
+        SimulacaoRiscoResponse resposta = service.simular(new SimulacaoRiscoRequest(
+                new BigDecimal("1000"),
+                "Nova categoria",
+                72,
+                "Fornecedor de teste",
+                TipoContratacao.LICITACAO));
+
+        assertEquals(NivelRisco.MEDIO, resposta.nivelRisco());
+        assertEquals(35, resposta.score());
+        assertEquals("Fornecedor de teste", resposta.fornecedor());
+        assertTrue(resposta.exigeRevisao());
+        assertEquals(1, resposta.sinais().size());
     }
 
     private ContratoPublico contrato(String valor, String orcamento, TipoContratacao tipo) {

@@ -94,6 +94,18 @@ class ContratoPublicoControllerIntegrationTest {
                 .andExpect(jsonPath("$.contratosSuspeitos").value(1))
                 .andExpect(jsonPath("$.anomaliasPorCategoria.TI").value(1));
 
+        mockMvc.perform(get("/api/contratos")
+                        .param("nivelRisco", "CRITICO")
+                        .param("categoria", "TI")
+                        .param("busca", "fornecedor de teste"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].nivelRisco").value("CRITICO"));
+
+        mockMvc.perform(get("/api/contratos/categorias"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("TI"));
+
         org.junit.jupiter.api.Assertions.assertEquals(
                 3L, jdbcTemplate.queryForObject("select count(*) from audit_logs", Long.class));
     }
@@ -162,5 +174,26 @@ class ContratoPublicoControllerIntegrationTest {
                                 {"username":"admin","password":"senha-incorreta"}
                                 """))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "AUDITOR")
+    void simulaRiscoSemPersistirContrato() throws Exception {
+        mockMvc.perform(post("/api/contratos/simulacao-risco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "valor": 1000,
+                                  "categoria": "Categoria sem histórico",
+                                  "duracaoMeses": 72,
+                                  "fornecedor": "Fornecedor previsto",
+                                  "tipoContratacao": "LICITACAO"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score").value(35))
+                .andExpect(jsonPath("$.nivelRisco").value("MEDIO"))
+                .andExpect(jsonPath("$.exigeRevisao").value(true))
+                .andExpect(jsonPath("$.fornecedor").value("Fornecedor previsto"));
     }
 }

@@ -4,6 +4,9 @@ import com.example.meuappjava.audit.Auditado;
 import com.example.meuappjava.domain.dto.ContratoPublicoRequest;
 import com.example.meuappjava.domain.dto.ContratoPublicoResponse;
 import com.example.meuappjava.domain.dto.DashboardSummaryResponse;
+import com.example.meuappjava.domain.dto.SimulacaoRiscoRequest;
+import com.example.meuappjava.domain.dto.SimulacaoRiscoResponse;
+import com.example.meuappjava.domain.enums.NivelRisco;
 import com.example.meuappjava.service.ContratoPublicoService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -25,6 +29,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -66,8 +71,19 @@ public class ContratoPublicoController {
             @ApiResponse(responseCode = "401", description = "Autenticação necessária"),
             @ApiResponse(responseCode = "403", description = "Perfil sem permissão")
     })
-    public Page<ContratoPublicoResponse> listar(@PageableDefault(size = 20) Pageable pageable) {
-        return service.listar(pageable);
+    public Page<ContratoPublicoResponse> listar(
+            @PageableDefault(size = 20) Pageable pageable,
+            @RequestParam(required = false) NivelRisco nivelRisco,
+            @RequestParam(required = false) String categoria,
+            @RequestParam(defaultValue = "") String busca) {
+        return service.listar(pageable, nivelRisco, categoria, busca);
+    }
+
+    @GetMapping("/categorias")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'ANALISTA', 'ADMIN')")
+    @Operation(summary = "Listar categorias de contratos")
+    public List<String> listarCategorias() {
+        return service.listarCategorias();
     }
 
     @GetMapping("/resumo")
@@ -82,6 +98,20 @@ public class ContratoPublicoController {
     })
     public DashboardSummaryResponse resumo() {
         return service.resumo();
+    }
+
+    @PostMapping("/simulacao-risco")
+    @PreAuthorize("hasAnyRole('INGESTOR', 'AUDITOR', 'ANALISTA', 'ADMIN')")
+    @Operation(summary = "Simular risco antes da ingestão",
+            description = "Gera uma estimativa informativa sem persistir o contrato.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Simulação calculada"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Autenticação necessária"),
+            @ApiResponse(responseCode = "403", description = "Perfil sem permissão")
+    })
+    public SimulacaoRiscoResponse simular(@Valid @RequestBody SimulacaoRiscoRequest request) {
+        return service.simular(request);
     }
 
     @GetMapping("/{id}")
