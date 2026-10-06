@@ -72,6 +72,8 @@ docker compose up --build
 No Bash, exporte as mesmas variáveis antes de executar `docker compose up --build`. Não use senhas de produção neste ambiente de demonstração. Para encerrar, execute `docker compose down`; acrescente `-v` somente se quiser remover também os dados persistidos do PostgreSQL.
 Se a porta local `8080` já estiver ocupada, defina `AUDITAGOV_PORT` para outra porta antes de iniciar.
 
+Contratos cadastrados e simulações classificados como alto ou crítico enviam alertas JSON ao webhook do Make configurado em `app.webhook.make-url` (`src/main/resources/application.properties`). Para receber o evento inicial e capturar sua estrutura, deixe o cenário do webhook em modo de escuta no Make durante o teste.
+
 Após a inicialização:
 
 - Swagger UI: <http://localhost:8080/swagger-ui/index.html>

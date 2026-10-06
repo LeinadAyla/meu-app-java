@@ -1,15 +1,23 @@
 package com.example.meuappjava.controller;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.meuappjava.domain.enums.NivelRisco;
+import com.example.meuappjava.service.MakeWebhookService;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -36,6 +44,9 @@ class ContratoPublicoControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockBean
+    private MakeWebhookService makeWebhookService;
 
     @DynamicPropertySource
     static void configurarPostgres(DynamicPropertyRegistry registry) {
@@ -78,6 +89,14 @@ class ContratoPublicoControllerIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
+
+        verify(makeWebhookService).enviarAlerta(
+                anyString(),
+                eq("Órgão de teste"),
+                eq("Fornecedor de teste"),
+                argThat(valor -> valor.compareTo(new BigDecimal("120000")) == 0),
+                eq(NivelRisco.CRITICO),
+                anyString());
 
         String id = com.jayway.jsonpath.JsonPath.read(resposta, "$.id");
         mockMvc.perform(get("/api/contratos/{id}", id))
@@ -195,5 +214,31 @@ class ContratoPublicoControllerIntegrationTest {
                 .andExpect(jsonPath("$.nivelRisco").value("MEDIO"))
                 .andExpect(jsonPath("$.exigeRevisao").value(true))
                 .andExpect(jsonPath("$.fornecedor").value("Fornecedor previsto"));
+    }
+
+    @Test
+    @WithMockUser(roles = "AUDITOR")
+    void enviaWebhookQuandoSimulacaoTemRiscoAlto() throws Exception {
+        mockMvc.perform(post("/api/contratos/simulacao-risco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "valor": 50000,
+                                  "categoria": "Categoria sem histórico",
+                                  "duracaoMeses": 12,
+                                  "fornecedor": "Fornecedor previsto",
+                                  "tipoContratacao": "DISPENSA"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nivelRisco").value("ALTO"));
+
+        verify(makeWebhookService).enviarAlerta(
+                argThat(id -> id.startsWith("SIM-")),
+                eq("Simulação"),
+                eq("Fornecedor previsto"),
+                argThat(valor -> valor.compareTo(new BigDecimal("50000")) == 0),
+                eq(NivelRisco.ALTO),
+                anyString());
     }
 }

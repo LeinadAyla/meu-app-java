@@ -8,6 +8,7 @@ import com.example.meuappjava.domain.dto.SimulacaoRiscoRequest;
 import com.example.meuappjava.domain.dto.SimulacaoRiscoResponse;
 import com.example.meuappjava.domain.enums.NivelRisco;
 import com.example.meuappjava.service.ContratoPublicoService;
+import com.example.meuappjava.service.MakeWebhookService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -39,9 +40,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class ContratoPublicoController {
 
     private final ContratoPublicoService service;
+    private final MakeWebhookService makeWebhookService;
 
-    public ContratoPublicoController(ContratoPublicoService service) {
+    public ContratoPublicoController(ContratoPublicoService service, MakeWebhookService makeWebhookService) {
         this.service = service;
+        this.makeWebhookService = makeWebhookService;
     }
 
     @PostMapping
@@ -56,6 +59,13 @@ public class ContratoPublicoController {
     })
     public ResponseEntity<ContratoPublicoResponse> criar(@Valid @RequestBody ContratoPublicoRequest request) {
         ContratoPublicoResponse response = service.criar(request);
+        makeWebhookService.enviarAlerta(
+                response.id().toString(),
+                response.orgaoContratante(),
+                response.nomeContratado(),
+                response.valorContratado(),
+                response.nivelRisco(),
+                response.detalhesAnomalia());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(response.id())
@@ -111,7 +121,15 @@ public class ContratoPublicoController {
             @ApiResponse(responseCode = "403", description = "Perfil sem permissão")
     })
     public SimulacaoRiscoResponse simular(@Valid @RequestBody SimulacaoRiscoRequest request) {
-        return service.simular(request);
+        SimulacaoRiscoResponse response = service.simular(request);
+        makeWebhookService.enviarAlerta(
+                "SIM-" + UUID.randomUUID(),
+                "Simulação",
+                response.fornecedor(),
+                request.valor(),
+                response.nivelRisco(),
+                String.join("; ", response.sinais()));
+        return response;
     }
 
     @GetMapping("/{id}")
