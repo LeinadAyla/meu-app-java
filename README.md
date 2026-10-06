@@ -19,6 +19,8 @@ flowchart LR
     Anomaly --> Domain[Domínio<br/>Contrato / Resultado / Risco]
     ContractService --> ContractRepo[ContratoPublicoRepository]
     ContractRepo --> DB[(PostgreSQL)]
+    ContractService --> MakeWebhook[MakeWebhookService]
+    MakeWebhook --> Make[Make<br/>Webhook]
     API --> AuditAspect[AuditoriaAspect]
     AuditAspect --> AuditService[AuditLogService]
     AuditService --> AuditRepo[AuditLogRepository]
@@ -34,6 +36,7 @@ flowchart LR
 - **Segurança:** endpoints de contratos exigem autenticação e perfis. O login JWT de demonstração existe apenas no perfil `demo`, com credenciais e chave fornecidas pelo ambiente.
 - **Auditoria:** operações anotadas registram usuário, ação, IP e detalhes em `audit_logs`; a entidade não oferece operações de edição ou remoção na aplicação.
 - **Observabilidade:** Actuator expõe health e métricas, incluindo `auditagov.contratos.suspeitos`.
+- **Integração externa:** alertas de contratos e simulações com risco alto ou crítico são enviados como JSON ao webhook do Make.
 
 ## Regras do motor de anomalias
 
@@ -73,6 +76,14 @@ No Bash, exporte as mesmas variáveis antes de executar `docker compose up --bui
 Se a porta local `8080` já estiver ocupada, defina `AUDITAGOV_PORT` para outra porta antes de iniciar.
 
 Contratos cadastrados e simulações classificados como alto ou crítico enviam alertas JSON ao webhook do Make configurado em `app.webhook.make-url` (`src/main/resources/application.properties`). Para receber o evento inicial e capturar sua estrutura, deixe o cenário do webhook em modo de escuta no Make durante o teste.
+
+### Fluxo de alertas automatizados com Make
+
+1. **Ingestão:** o perfil `INGESTOR` cadastra um contrato por `POST /api/contratos`; alternativamente, um perfil autorizado solicita uma estimativa por `POST /api/contratos/simulacao-risco`.
+2. **Análise de anomalias:** `AnomaliaService` calcula nível de risco e sinais a partir das regras configuradas. A ingestão persiste o contrato e registra a auditoria; a simulação é informativa e não persiste dados.
+3. **Notificação externa:** se a classificação for `ALTO` ou `CRITICO`, `ContratoPublicoController` solicita ao `MakeWebhookService` o envio de um `POST` JSON para `app.webhook.make-url`. O evento inclui identificador do contrato/simulação, órgão, fornecedor, valor, nível de risco, anomalias e mensagem social em pt-BR. Riscos abaixo desses níveis não geram notificação.
+
+Para configurar a captura de dados no Make, coloque o cenário com o gatilho Custom Webhook em modo de escuta e envie um contrato ou simulação com risco alto/crítico. A URL de produção está definida em `src/main/resources/application.properties`; mantenha-a protegida e não a inclua em logs ou documentação externa. O envio tem timeouts limitados: uma falha no Make é registrada nos logs da aplicação e não altera a resposta da API nem reverte o contrato persistido.
 
 Após a inicialização:
 
