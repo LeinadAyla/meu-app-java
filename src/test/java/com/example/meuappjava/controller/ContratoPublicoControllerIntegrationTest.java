@@ -99,6 +99,17 @@ class ContratoPublicoControllerIntegrationTest {
                 anyString());
 
         String id = com.jayway.jsonpath.JsonPath.read(resposta, "$.id");
+        mockMvc.perform(post("/api/contratos/{id}/publicar-facebook", id))
+                .andExpect(status().isNoContent());
+        verify(makeWebhookService).publicarContrato(
+                eq(id),
+                eq("PROC-2025-1"),
+                eq("Órgão de teste"),
+                eq("Fornecedor de teste"),
+                argThat(valor -> valor.compareTo(new BigDecimal("120000")) == 0),
+                eq(NivelRisco.CRITICO),
+                anyString());
+
         mockMvc.perform(get("/api/contratos/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
@@ -126,7 +137,7 @@ class ContratoPublicoControllerIntegrationTest {
                 .andExpect(jsonPath("$[0]").value("TI"));
 
         org.junit.jupiter.api.Assertions.assertEquals(
-                3L, jdbcTemplate.queryForObject("select count(*) from audit_logs", Long.class));
+                4L, jdbcTemplate.queryForObject("select count(*) from audit_logs", Long.class));
     }
 
     @Test

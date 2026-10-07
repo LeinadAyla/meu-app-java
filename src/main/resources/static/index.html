@@ -184,7 +184,7 @@
                 </button>
               </div>
               <div class="overflow-x-auto">
-                <table class="w-full min-w-[900px] text-left text-sm">
+                <table class="w-full min-w-[1050px] text-left text-sm">
                   <thead class="muted">
                     <tr class="border-b" style="border-color:var(--line)">
                       <th class="pb-3 pr-4 font-medium">Processo / contrato</th>
@@ -192,7 +192,7 @@
                       <th class="pb-3 pr-4 font-medium">Categoria</th>
                       <th class="pb-3 pr-4 text-right font-medium">Valor</th>
                       <th class="pb-3 pr-4 text-right font-medium">Risco</th>
-                      <th class="pb-3 text-right font-medium">Detalhes</th>
+                      <th class="pb-3 text-right font-medium">Ações</th>
                     </tr>
                   </thead>
                   <tbody id="contract-rows"></tbody>
@@ -583,11 +583,27 @@
           row.appendChild(supplier);
           addCell(row, contract.categoria);
           addCell(row, currencyFormatter.format(Number(contract.valorContratado)), "text-right whitespace-nowrap");
-          const riskCell = addCell(row, "", "pr-4 text-right");
+          const riskCell = addCell(row, "", "pr-4 text-right whitespace-nowrap");
+          const riskActions = document.createElement("div");
+          riskActions.className = "inline-flex items-center justify-end gap-2";
           const badge = document.createElement("span");
           badge.className = `inline-flex rounded-full px-2.5 py-1 text-xs font-semibold risk-${contract.nivelRisco}`;
           badge.textContent = riskLabels[contract.nivelRisco] || contract.nivelRisco;
-          riskCell.appendChild(badge);
+          const publishButton = document.createElement("button");
+          publishButton.type = "button";
+          publishButton.className = "inline-flex items-center gap-1 rounded-lg border border-teal-500/50 px-2.5 py-1.5 text-xs text-teal-400 hover:bg-teal-500/10 disabled:cursor-wait disabled:opacity-60";
+          const publishIcon = document.createElement("i");
+          publishIcon.className = "bi bi-facebook";
+          publishIcon.setAttribute("aria-hidden", "true");
+          const publishLabel = document.createElement("span");
+          publishLabel.textContent = "Publicar";
+          publishButton.append(publishIcon, publishLabel);
+          publishButton.setAttribute("aria-label", `Enviar contrato ${contract.numeroProcesso} para publicação no Facebook`);
+          publishButton.title = "Publicar no Facebook";
+          publishButton.addEventListener("click", () => publishContract(contract, publishButton));
+          riskActions.append(badge, publishButton);
+          riskCell.appendChild(riskActions);
+
           const detailsCell = document.createElement("td");
           detailsCell.className = "py-3 text-right";
           const detailsButton = document.createElement("button");
@@ -598,6 +614,25 @@
           detailsCell.appendChild(detailsButton);
           row.appendChild(detailsCell);
           body.appendChild(row);
+        }
+      }
+
+      async function publishContract(contract, button) {
+        const label = button.querySelector("span");
+        button.disabled = true;
+        label.textContent = "Enviando…";
+        byId("table-message").textContent = `Enviando contrato ${contract.numeroProcesso} para o fluxo de publicação…`;
+        byId("table-message").className = "text-sm muted";
+        try {
+          await request(`${api}/contratos/${encodeURIComponent(contract.id)}/publicar-facebook`, { method: "POST" });
+          byId("table-message").textContent = `Contrato ${contract.numeroProcesso} enviado ao Make para publicação.`;
+          byId("table-message").className = "text-sm text-emerald-400";
+        } catch (error) {
+          byId("table-message").textContent = error.message;
+          byId("table-message").className = "text-sm text-rose-400";
+        } finally {
+          button.disabled = false;
+          label.textContent = "Publicar";
         }
       }
 

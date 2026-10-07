@@ -7,9 +7,11 @@ import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class MakeWebhookService {
@@ -52,6 +54,37 @@ public class MakeWebhookService {
                     ? exception.getClass().getSimpleName()
                     : exception.getMessage().replace(webhookUrl, "[URL REDACTED]");
             LOGGER.error("Falha ao enviar alerta ao webhook do Make para {}: {}", id, detalhe);
+        }
+    }
+
+    public void publicarContrato(
+            String id,
+            String processo,
+            String orgao,
+            String fornecedor,
+            BigDecimal valor,
+            NivelRisco nivelRisco,
+            String anomalia) {
+        MakeWebhookPayload payload = new MakeWebhookPayload(
+                id,
+                orgao,
+                fornecedor,
+                valor,
+                nivelRisco.name(),
+                anomalia == null || anomalia.isBlank() ? "Nenhuma anomalia identificada." : anomalia,
+                "Publicação AuditaGov: contrato " + processo + " de "
+                        + NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")).format(valor)
+                        + " em " + orgao + ", classificado com risco " + nivelRisco.name() + ".");
+        try {
+            restTemplate.postForEntity(webhookUrl, payload, Void.class);
+        } catch (RestClientException exception) {
+            String detalhe = exception.getMessage() == null
+                    ? exception.getClass().getSimpleName()
+                    : exception.getMessage().replace(webhookUrl, "[URL REDACTED]");
+            LOGGER.error("Falha ao publicar contrato {} no webhook do Make: {}", id, detalhe);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Não foi possível enviar a publicação ao serviço externo.");
         }
     }
 

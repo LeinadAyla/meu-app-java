@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,9 +30,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/contratos")
@@ -130,6 +132,32 @@ public class ContratoPublicoController {
                 response.nivelRisco(),
                 String.join("; ", response.sinais()));
         return response;
+    }
+
+    @PostMapping("/{id}/publicar-facebook")
+    @Auditado("CONTRATO_ENVIADO_PARA_PUBLICACAO")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'ANALISTA', 'ADMIN')")
+    @Operation(summary = "Enviar contrato ao fluxo de publicação no Facebook",
+            description = "Dispara o webhook do Make sob demanda para um contrato existente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Publicação enviada ao webhook"),
+            @ApiResponse(responseCode = "401", description = "Autenticação necessária"),
+            @ApiResponse(responseCode = "403", description = "Perfil sem permissão"),
+            @ApiResponse(responseCode = "404", description = "Contrato não encontrado"),
+            @ApiResponse(responseCode = "502", description = "Falha ao enviar ao webhook")
+    })
+    public ResponseEntity<Void> publicarNoFacebook(@PathVariable UUID id) {
+        ContratoPublicoResponse contrato = service.buscarPorId(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrato não encontrado."));
+        makeWebhookService.publicarContrato(
+                contrato.id().toString(),
+                contrato.numeroProcesso(),
+                contrato.orgaoContratante(),
+                contrato.nomeContratado(),
+                contrato.valorContratado(),
+                contrato.nivelRisco(),
+                contrato.detalhesAnomalia());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

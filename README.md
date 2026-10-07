@@ -85,6 +85,8 @@ Contratos cadastrados e simulações classificados como alto ou crítico enviam 
 
 Para configurar a captura de dados no Make, coloque o cenário com o gatilho Custom Webhook em modo de escuta e envie um contrato ou simulação com risco alto/crítico. A URL de produção está definida em `src/main/resources/application.properties`; mantenha-a protegida e não a inclua em logs ou documentação externa. O envio tem timeouts limitados: uma falha no Make é registrada nos logs da aplicação e não altera a resposta da API nem reverte o contrato persistido.
 
+Na tabela de contratos, usuários com perfil `AUDITOR`, `ANALISTA` ou `ADMIN` também podem usar **Publicar no Facebook** para disparar manualmente o fluxo do Make para um contrato existente, independentemente do risco. A aplicação envia os dados pelo backend; a URL do webhook não é exposta ao navegador. A rota correspondente é `POST /api/contratos/{id}/publicar-facebook`; erros do serviço externo são retornados como HTTP 502 e a ação é registrada na trilha de auditoria.
+
 Após a inicialização:
 
 - Swagger UI: <http://localhost:8080/swagger-ui/index.html>
